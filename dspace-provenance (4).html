@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerador de dc.provenance — DSpace</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/spark-md5/3.0.2/spark-md5.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue-dark:  #005ca9;
+      --blue-mid:   #0073cc;
+      --blue-light: #00aeef;
+      --blue-pale:  #e6f4fc;
+      --blue-xpale: #F2F6FA;
+
+      --bg:           #ffffff;
+      --surface:      #ffffff;
+      --surface-2:    #eaf4fb;
+      --border:       rgba(0,92,169,0.12);
+      --border-strong: rgba(0,92,169,0.22);
+      --text:         #0d2137;
+      --text-muted:   #3d6080;
+      --text-faint:   #7fa3be;
+      --radius: 10px;
+      --radius-lg: 14px;
+      --mono: 'Courier New', Courier, monospace;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2.5rem 1rem 4rem;
+    }
+
+    header {
+      width: 100%;
+      max-width: 580px;
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+
+    header img {
+      height: 52px;
+      width: auto;
+      display: block;
+      margin: 0 auto 1rem;
+    }
+
+    header h1 {
+      font-size: 19px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--blue-dark);
+    }
+
+    header p {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 5px;
+      line-height: 1.55;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-lg);
+      padding: 1.75rem;
+      width: 100%;
+      max-width: 580px;
+      box-shadow: 0 2px 12px rgba(0,92,169,0.07);
+    }
+
+    .field { margin-bottom: 14px; }
+
+    .field label {
+      display: block;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--blue-dark);
+      margin-bottom: 5px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .field input[type="text"] {
+      width: 100%;
+      padding: 9px 12px;
+      font-size: 14px;
+      font-family: inherit;
+      color: var(--text);
+      background: var(--blue-xpale);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius);
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .field input[type="text"]:focus {
+      border-color: var(--blue-light);
+      box-shadow: 0 0 0 3px rgba(0,174,239,0.15);
+    }
+
+    .field input[type="text"]::placeholder {
+      color: var(--text-faint);
+    }
+
+    .row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 1.5rem;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .checkbox-row input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+      accent-color: var(--blue-dark);
+      flex-shrink: 0;
+    }
+
+    .checkbox-row span {
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 1.25rem 0;
+    }
+
+    #dropzone {
+      border: 1.5px dashed var(--blue-light);
+      border-radius: var(--radius-lg);
+      padding: 2.25rem 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+      background: var(--blue-xpale);
+    }
+
+    #dropzone:hover, #dropzone.drag-over {
+      background: var(--blue-pale);
+      border-color: var(--blue-dark);
+    }
+
+    #dropzone .icon {
+      font-size: 28px;
+      margin-bottom: 10px;
+      color: var(--blue-light);
+    }
+
+    #dropzone p.main {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--blue-dark);
+      margin-bottom: 4px;
+    }
+
+    #dropzone p.sub {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    #progress {
+      display: none;
+      text-align: center;
+      padding: 1.5rem 0 0.5rem;
+    }
+
+    #progress p {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .progress-track {
+      height: 4px;
+      background: var(--blue-pale);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    #progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--blue-dark), var(--blue-light));
+      border-radius: 99px;
+      transition: width 0.1s;
+    }
+
+    #results { display: none; }
+
+    .metric-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .metric {
+      background: var(--blue-xpale);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.875rem 1rem;
+    }
+
+    .metric .label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: var(--blue-mid);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .metric .value {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+      word-break: break-all;
+    }
+
+    .metric .value.large {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--blue-dark);
+    }
+
+    .metric .sub-value {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .output-block {
+      background: var(--blue-xpale);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.875rem 1rem;
+      margin-bottom: 10px;
+    }
+
+    .output-block .label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: var(--blue-mid);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .output-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .output-row code {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--text);
+      flex: 1;
+      word-break: break-all;
+    }
+
+    .prov-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .prov-row textarea {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text);
+      background: var(--surface);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius);
+      padding: 8px 10px;
+      flex: 1;
+      resize: vertical;
+      min-height: 92px;
+      line-height: 1.6;
+      outline: none;
+    }
+
+    button.copy-btn {
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--blue-dark);
+      background: var(--surface);
+      border: 1px solid var(--blue-dark);
+      border-radius: var(--radius);
+      padding: 6px 14px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.12s, color 0.12s;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    button.copy-btn:hover {
+      background: var(--blue-dark);
+      color: #fff;
+    }
+    button.copy-btn:active { transform: scale(0.97); }
+
+    button.reset-btn {
+      font-family: inherit;
+      font-size: 13px;
+      color: var(--text-muted);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 6px 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 1rem auto 0;
+      transition: color 0.12s;
+    }
+
+    button.reset-btn:hover { color: var(--blue-dark); }
+
+    footer {
+      margin-top: 2rem;
+      font-size: 12px;
+      color: var(--text-faint);
+      text-align: center;
+      line-height: 1.8;
+    }
+
+    @media (max-width: 480px) {
+      .row-2, .metric-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <img src="data:image/png;base64,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" alt="FGV SB — Sistema de Bibliotecas" style="height:80px; width:auto;">
+    <h1>Gerador de dc.provenance</h1>
+    <p>Registra a substituição de bitstream no DSpace com checksum MD5 e texto padronizado de proveniência. O arquivo não é enviado a nenhum servidor.</p>
+  </header>
+
+  <div class="card">
+
+    <div id="form-section">
+      <div class="row-2">
+        <div class="field">
+          <label for="f-nome">Nome</label>
+          <input type="text" id="f-nome" placeholder="Nome cadastrado no DSpace">
+        </div>
+        <div class="field">
+          <label for="f-email">E-mail</label>
+          <input type="text" id="f-email" placeholder="E-mail cadastrado no DSpace">
+        </div>
+      </div>
+      <div class="field">
+        <label for="f-motivo">Motivo da substituição</label>
+        <input type="text" id="f-motivo" placeholder="Insira uma breve descrição do motivo de alteração do arquivo">
+      </div>
+      <label class="checkbox-row">
+        <input type="checkbox" id="f-preservado">
+        <span>Bitstream anterior será preservado no repositório</span>
+      </label>
+      <div class="divider"></div>
+    </div>
+
+    <div id="dropzone"
+      onclick="document.getElementById('fileinput').click()"
+      ondragover="event.preventDefault(); this.classList.add('drag-over')"
+      ondragleave="this.classList.remove('drag-over')"
+      ondrop="handleDrop(event)">
+      <div class="icon">↑</div>
+      <p class="main">Arraste o arquivo ou clique para selecionar</p>
+      <p class="sub">PDF ou qualquer formato</p>
+      <input type="file" id="fileinput" style="display:none" onchange="processFile(this.files[0])">
+    </div>
+
+    <div id="progress">
+      <p>Calculando checksum<span id="dots"></span></p>
+      <div class="progress-track">
+        <div id="progress-bar"></div>
+      </div>
+    </div>
+
+    <div id="results">
+      <div class="metric-row">
+        <div class="metric">
+          <div class="label">Arquivo</div>
+          <div class="value" id="res-name"></div>
+        </div>
+        <div class="metric">
+          <div class="label">Tamanho</div>
+          <div class="value large" id="res-size"></div>
+          <div class="sub-value" id="res-size-bytes"></div>
+        </div>
+      </div>
+
+      <div class="output-block">
+        <div class="label">Checksum MD5</div>
+        <div class="output-row">
+          <code id="res-md5"></code>
+          <button class="copy-btn" id="btn-copy-md5" onclick="copyField('md5', 'btn-copy-md5')">
+            Copiar
+          </button>
+        </div>
+      </div>
+
+      <div class="output-block">
+        <div class="label">dc.provenance</div>
+        <div class="prov-row">
+          <textarea id="res-provenance" readonly></textarea>
+          <button class="copy-btn" id="btn-copy-prov" onclick="copyField('prov', 'btn-copy-prov')" style="margin-top:2px;">
+            Copiar
+          </button>
+        </div>
+      </div>
+
+      <button class="reset-btn" onclick="reset()">↺ Analisar outro arquivo</button>
+    </div>
+
+  </div>
+
+  <footer>FGV — Repositório Digital · Processamento local, sem envio de dados<br>Desenvolvido por Raphael Xavier<br>raphael.xavier@fgv.br</footer>
+
+  <script>
+    let stored = {};
+    let dotsInterval;
+
+    function handleDrop(e) {
+      e.preventDefault();
+      document.getElementById('dropzone').classList.remove('drag-over');
+      const file = e.dataTransfer.files[0];
+      if (file) processFile(file);
+    }
+
+    function formatBytes(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+      if (bytes < 1073741824) return (bytes / 1048576).toFixed(2) + ' MB';
+      return (bytes / 1073741824).toFixed(2) + ' GB';
+    }
+
+    function getNow() {
+      return new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
+    }
+
+    function processFile(file) {
+      if (!file) return;
+      stored = {
+        nome: document.getElementById('f-nome').value.trim() || '[NOME]',
+        email: document.getElementById('f-email').value.trim() || '[EMAIL]',
+        motivo: document.getElementById('f-motivo').value.trim() || '[MOTIVO DA SUBSTITUIÇÃO]',
+        preservado: document.getElementById('f-preservado').checked
+      };
+
+      document.getElementById('dropzone').style.display = 'none';
+      document.getElementById('results').style.display = 'none';
+      document.getElementById('progress').style.display = 'block';
+      document.getElementById('progress-bar').style.width = '0%';
+
+      let dotCount = 0;
+      dotsInterval = setInterval(() => {
+        dotCount = (dotCount + 1) % 4;
+        document.getElementById('dots').textContent = '.'.repeat(dotCount);
+      }, 350);
+
+      const spark = new SparkMD5.ArrayBuffer();
+      const chunkSize = 2 * 1024 * 1024;
+      const chunks = Math.ceil(file.size / chunkSize);
+      let current = 0;
+
+      function readChunk() {
+        const start = current * chunkSize;
+        const end = Math.min(start + chunkSize, file.size);
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          spark.append(e.target.result);
+          current++;
+          document.getElementById('progress-bar').style.width = Math.round((current / chunks) * 100) + '%';
+          if (current < chunks) readChunk();
+          else showResults(file, spark.end());
+        };
+        reader.readAsArrayBuffer(file.slice(start, end));
+      }
+      readChunk();
+    }
+
+    function showResults(file, md5) {
+      clearInterval(dotsInterval);
+      document.getElementById('progress').style.display = 'none';
+      document.getElementById('form-section').style.display = 'none';
+
+      const ts = getNow();
+      const { nome, email, motivo, preservado } = stored;
+      const preservStr = preservado
+        ? 'Bitstream anterior preservado no repositório (inacessível ao público).'
+        : 'Bitstream anterior não preservado.';
+
+      const prov = `Bitstream substituído por ${nome} (${email}) em ${ts}: ${motivo}. ${preservStr} No. of bitstreams: 1 [${file.name}: ${file.size} bytes, checksum: ${md5} (MD5)]`;
+
+      stored.md5 = md5;
+      stored.prov = prov;
+
+      document.getElementById('res-name').textContent = file.name;
+      document.getElementById('res-size').textContent = formatBytes(file.size);
+      document.getElementById('res-size-bytes').textContent = file.size.toLocaleString('pt-BR') + ' bytes';
+      document.getElementById('res-md5').textContent = md5;
+      document.getElementById('res-provenance').value = prov;
+      document.getElementById('results').style.display = 'block';
+    }
+
+    function copyField(key, btnId) {
+      const val = key === 'md5' ? stored.md5 : stored.prov;
+      navigator.clipboard.writeText(val).catch(() => {
+        const ta = document.createElement('textarea');
+        ta.value = val;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      });
+      const btn = document.getElementById(btnId);
+      const orig = btn.textContent;
+      btn.textContent = '✓ Copiado';
+      setTimeout(() => { btn.textContent = orig; }, 1800);
+    }
+
+    function reset() {
+      stored = {};
+      document.getElementById('results').style.display = 'none';
+      document.getElementById('form-section').style.display = 'block';
+      document.getElementById('dropzone').style.display = 'block';
+      document.getElementById('fileinput').value = '';
+    }
+  </script>
+
+</body>
+</html>
