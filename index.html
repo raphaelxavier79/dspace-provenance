@@ -165,6 +165,39 @@
     }
     .checkbox-row span { font-size: 14px; color: var(--text); }
 
+    .tooltip-wrap { position: relative; display: flex; flex: 1; }
+    .tooltip-wrap .toggle-btn { width: 100%; }
+    .tooltip-wrap .tooltip-box {
+      display: none;
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--text);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 400;
+      line-height: 1.5;
+      padding: 8px 11px;
+      border-radius: 8px;
+      width: 220px;
+      text-align: left;
+      z-index: 10;
+      pointer-events: none;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+    .tooltip-wrap .tooltip-box::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: var(--text);
+    }
+    .tooltip-wrap:hover .tooltip-box { display: block; }
+
     .divider { height: 1px; background: var(--border); margin: 1.25rem 0; }
 
     /* DROPZONE */
@@ -360,8 +393,11 @@
       </div>
       <div class="field">
         <label>E-mail</label>
-        <input type="text" id="f-email" placeholder="E-mail cadastrado no DSpace">
+        <input type="text" id="f-email" placeholder="E-mail cadastrado no DSpace" onblur="validarEmail()">
       </div>
+    </div>
+    <div id="email-erro" style="display:none; font-size:12px; color:#c0392b; margin-top:-10px; margin-bottom:10px;">
+      Informe um endereço de e-mail válido.
     </div>
 
     <div class="field">
@@ -373,6 +409,7 @@
     <div class="toggle-group">
       <button class="toggle-btn" id="btn-substituicao" onclick="setTipo('substituicao')">Substituição</button>
       <button class="toggle-btn" id="btn-adicao" onclick="setTipo('adicao')">Adição</button>
+      <button class="toggle-btn" id="btn-metadado" onclick="setTipo('metadado')">Alteração de metadado</button>
     </div>
 
     <div id="preservacao-section" class="hidden">
@@ -380,6 +417,30 @@
         <input type="checkbox" id="f-preservado">
         <span>Bitstream anterior será preservado no repositório</span>
       </label>
+    </div>
+
+    <div id="metadado-section" class="hidden">
+      <span class="toggle-label">Tipo de proveniência</span>
+      <div class="toggle-group">
+        <div class="tooltip-wrap">
+          <button class="toggle-btn" id="btn-meta-id" onclick="setSubtipo('identificacao')">Identificação</button>
+          <div class="tooltip-box">Alteração em campos que definem o que o objeto é: título, data, tipo, identificadores (Handle, DOI), etc.</div>
+        </div>
+        <div class="tooltip-wrap">
+          <button class="toggle-btn" id="btn-meta-autor" onclick="setSubtipo('autoria')">Autoria</button>
+          <div class="tooltip-box">Alteração em campos de identificação de pessoas: nome, ORCID, afiliação, orientador, etc.</div>
+        </div>
+        <div class="tooltip-wrap">
+          <button class="toggle-btn" id="btn-meta-massa" onclick="setSubtipo('massa')">Atualização em massa</button>
+          <div class="tooltip-box">Intervenção que afeta múltiplos registros simultaneamente, independente do tamanho de cada mudança individual.</div>
+        </div>
+      </div>
+      <div id="meta-n-section" class="hidden">
+        <div class="field">
+          <label>Número de itens afetados</label>
+          <input type="text" id="f-meta-n" placeholder="Ex: 847" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+        </div>
+      </div>
     </div>
 
     <button class="btn-primary" onclick="goStep3()">Continuar →</button>
@@ -440,7 +501,7 @@
       <div class="step-line"></div>
       <div class="step done" onclick="goBack(2)"><div class="step-num">✓</div>Dados</div>
       <div class="step-line"></div>
-      <div class="step done" onclick="goBack(3)"><div class="step-num">✓</div>Arquivos</div>
+      <div class="step" id="step4-crumb3" onclick="goBack(3)"><div class="step-num">3</div>Arquivos</div>
       <div class="step-line"></div>
       <div class="step active"><div class="step-num">4</div>Resultado</div>
     </div>
@@ -514,6 +575,13 @@
     return result;
   }
 
+  function validarEmail() {
+    const val = document.getElementById('f-email').value.trim();
+    const ok = !val || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+    document.getElementById('email-erro').style.display = ok ? 'none' : 'block';
+    return ok || !val; // campo vazio é permitido (usa placeholder)
+  }
+
   // STEP NAVIGATION
   function setTemProv(val) {
     state.temProv = val;
@@ -541,17 +609,45 @@
     state.tipo = tipo;
     document.getElementById('btn-substituicao').classList.toggle('active', tipo === 'substituicao');
     document.getElementById('btn-adicao').classList.toggle('active', tipo === 'adicao');
+    document.getElementById('btn-metadado').classList.toggle('active', tipo === 'metadado');
     document.getElementById('preservacao-section').classList.toggle('hidden', tipo !== 'substituicao');
-    if (tipo === 'adicao') { state.preservado = null; }
+    document.getElementById('metadado-section').classList.toggle('hidden', tipo !== 'metadado');
+    if (tipo !== 'substituicao') state.preservado = null;
+    if (tipo !== 'metadado') { state.subtipo = null; }
+  }
+
+  function setSubtipo(subtipo) {
+    state.subtipo = subtipo;
+    document.getElementById('btn-meta-id').classList.toggle('active', subtipo === 'identificacao');
+    document.getElementById('btn-meta-autor').classList.toggle('active', subtipo === 'autoria');
+    document.getElementById('btn-meta-massa').classList.toggle('active', subtipo === 'massa');
+    document.getElementById('meta-n-section').classList.toggle('hidden', subtipo !== 'massa');
   }
 
   function goStep3() {
     state.nome = document.getElementById('f-nome').value.trim() || '[NOME]';
     state.email = document.getElementById('f-email').value.trim() || '[EMAIL]';
-    state.motivo = document.getElementById('f-motivo').value.trim() || '[MOTIVO]';
+    state.motivo = document.getElementById('f-motivo').value.trim() || '';
+
+    // Valida e-mail se preenchido
+    const emailVal = document.getElementById('f-email').value.trim();
+    if (emailVal && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) {
+      document.getElementById('email-erro').style.display = 'block';
+      document.getElementById('f-email').focus();
+      return;
+    }
     if (!state.tipo) { alert('Selecione o tipo de operação.'); return; }
     if (state.tipo === 'substituicao') {
       state.preservado = document.getElementById('f-preservado').checked;
+    }
+    if (state.tipo === 'metadado') {
+      if (!state.subtipo) { alert('Selecione o tipo de alteração.'); return; }
+      if (state.subtipo === 'massa') {
+        state.metaN = document.getElementById('f-meta-n').value.trim() || 'N';
+      }
+      // Pula etapa 3 — vai direto para o resultado
+      gerarMetadado();
+      return;
     }
     show('step3'); hide('step2');
   }
@@ -710,7 +806,47 @@
     }
   }
 
-  // GERAR PROVENANCE
+  // GERAR PROVENANCE — ALTERAÇÃO DE METADADO
+  function gerarMetadado() {
+    const ts = getNow();
+    const { nome, email, motivo, subtipo, metaN, temProv, bitstreamsOrigem } = state;
+
+    const prefixos = {
+      identificacao: 'Atualização de identificação',
+      autoria: 'Atualização de autoria',
+      massa: 'Atualização em massa dos registros'
+    };
+
+    const prefixo = prefixos[subtipo];
+    const descricao = motivo ? `${prefixo} — ${motivo}` : prefixo;
+    const massaSufixo = subtipo === 'massa' ? ` Operação afetou ${metaN} itens.` : '';
+
+    // Bitstreams: apenas os do provenance de origem, se houver
+    let bsPart = '';
+    if (temProv && bitstreamsOrigem.length > 0) {
+      const bsLines = bitstreamsOrigem
+        .map(b => `${b.name}: ${b.size} bytes, checksum: ${b.checksum} (MD5)`)
+        .join(' ');
+      bsPart = ` No. of bitstreams: ${bitstreamsOrigem.length} ${bsLines}`;
+    }
+
+    const prov = `Metadado atualizado por ${nome} (${email}) em ${ts}: ${descricao}.${massaSufixo}${bsPart}`;
+
+    state.provGerado = prov;
+    document.getElementById('res-provenance').value = prov;
+    document.getElementById('result-metrics').innerHTML = '';
+
+    // Breadcrumb step3 fica como "pulado" (sem done, sem clicável)
+    const crumb3 = document.getElementById('step4-crumb3');
+    crumb3.classList.remove('done');
+    crumb3.style.cursor = 'default';
+    crumb3.style.opacity = '0.4';
+    crumb3.onclick = null;
+
+    show('step4'); hide('step2');
+  }
+
+  // GERAR PROVENANCE — SUBSTITUIÇÃO / ADIÇÃO
   function gerar() {
     const ts = getNow();
     const { nome, email, motivo, tipo, preservado, temProv, bitstreamsOrigem } = state;
@@ -795,6 +931,15 @@
     }
 
     document.getElementById('result-metrics').innerHTML = metricsHTML;
+
+    // Breadcrumb step3 como concluído
+    const crumb3 = document.getElementById('step4-crumb3');
+    crumb3.classList.add('done');
+    crumb3.style.cursor = 'pointer';
+    crumb3.style.opacity = '1';
+    crumb3.innerHTML = '<div class="step-num">✓</div>Arquivos';
+    crumb3.onclick = () => goBack(3);
+
     show('step4'); hide('step3');
   }
 
@@ -815,23 +960,37 @@
       temProv: null, provOrigem: '', bitstreamsOrigem: [],
       nome: '', email: '', motivo: '',
       tipo: null, preservado: null,
+      subtipo: null, metaN: null,
       files: [], mapping: {}
     };
     document.getElementById('f-nome').value = '';
     document.getElementById('f-email').value = '';
     document.getElementById('f-motivo').value = '';
     document.getElementById('prov-origem').value = '';
+    document.getElementById('f-meta-n').value = '';
     document.getElementById('file-list').innerHTML = '';
     document.getElementById('mapping-body').innerHTML = '';
     document.getElementById('btn-gerar').style.display = 'none';
     document.getElementById('progress').style.display = 'none';
-    ['btn-tem-prov','btn-nao-prov','btn-substituicao','btn-adicao'].forEach(id => {
+    ['btn-tem-prov','btn-nao-prov','btn-substituicao','btn-adicao','btn-metadado',
+     'btn-meta-id','btn-meta-autor','btn-meta-massa'].forEach(id => {
       document.getElementById(id).classList.remove('active');
     });
     document.getElementById('f-preservado').checked = false;
     document.getElementById('prov-origem-field').classList.add('hidden');
     document.getElementById('preservacao-section').classList.add('hidden');
+    document.getElementById('metadado-section').classList.add('hidden');
+    document.getElementById('meta-n-section').classList.add('hidden');
     document.getElementById('mapping-section').classList.add('hidden');
+
+    // Restaura crumb3
+    const crumb3 = document.getElementById('step4-crumb3');
+    crumb3.classList.remove('done');
+    crumb3.style.cursor = 'default';
+    crumb3.style.opacity = '1';
+    crumb3.innerHTML = '<div class="step-num">3</div>Arquivos';
+    crumb3.onclick = null;
+
     show('step1');
     ['step2','step3','step4'].forEach(hide);
   }
