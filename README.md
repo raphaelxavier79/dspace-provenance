@@ -2,7 +2,7 @@
 
 Ferramenta web para registrar operações em bitstreams e alterações de metadado em repositórios DSpace, gerando o texto padronizado de proveniência (`dc.provenance`) com checksum MD5.
 
-🔗 **[Acessar a ferramenta](https://raphaelxavier79.github.io/dspace-provenance/)**
+**[Acessar a ferramenta](https://raphaelxavier79.github.io/dspace-provenance/)**
 
 ---
 
@@ -72,8 +72,6 @@ Metadado atualizado por Nome Sobrenome (email@instituicao.br) em 2026-05-22T14:3
 ## Contexto
 
 Desenvolvido para uso interno no **Repositório Digital FGV**, no âmbito das práticas de preservação digital do **Sistema de Bibliotecas da FGV (FGV SB)**.
-
-A ferramenta foi apresentada no curso de gestão de repositórios institucionais promovido pela Rede Cariniana/IBICT em 2026.
 
 ---
 
